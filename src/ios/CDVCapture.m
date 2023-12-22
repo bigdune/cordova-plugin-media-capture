@@ -220,9 +220,10 @@
         options = [NSDictionary dictionary];
     }
 
-    // options could contain limit, duration and mode
+    // options could contain limit, duration, quality and mode
     // taking more than one video (limit) is only supported if provide own controls via cameraOverlayView property
     NSNumber* duration = [options objectForKey:@"duration"];
+    NSNumber* quality = [options objectForKey:@"quality"];
     NSString* mediaType = nil;
 
     if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera]) {
@@ -266,7 +267,18 @@
         // iOS 4.0
         if ([pickerController respondsToSelector:@selector(cameraCaptureMode)]) {
             pickerController.cameraCaptureMode = UIImagePickerControllerCameraCaptureModeVideo;
-            // pickerController.videoQuality = UIImagePickerControllerQualityTypeHigh;
+            switch ((int) (quality ? [quality doubleValue] * 10 : -1)) {
+                case 0:
+                    pickerController.videoQuality = UIImagePickerControllerQualityTypeLow;
+                    break;
+                case 5:
+                    pickerController.videoQuality = UIImagePickerControllerQualityTypeMedium;
+                    break;
+                case 10:
+                default:
+                    pickerController.videoQuality = UIImagePickerControllerQualityTypeHigh;
+                    break;
+            }
             // pickerController.cameraDevice = UIImagePickerControllerCameraDeviceRear;
             // pickerController.cameraFlashMode = UIImagePickerControllerCameraFlashModeAuto;
         }
@@ -490,7 +502,7 @@
 - (NSDictionary*)getMediaDictionaryFromPath:(NSString*)fullPath ofType:(NSString*)type
 {
     NSFileManager* fileMgr = [[NSFileManager alloc] init];
-    NSMutableDictionary* fileDict = [NSMutableDictionary dictionaryWithCapacity:5];
+    NSMutableDictionary* fileDict = [NSMutableDictionary dictionaryWithCapacity:6];
 
     CDVFile *fs = [self.commandDelegate getCommandInstance:@"File"];
 
@@ -507,14 +519,15 @@
         [fileDict setObject:[url absoluteURL] forKey:@"localURL"];
     }
     // determine type
-    if (!type) {
+    NSString* mimeType = type;
+    if (!mimeType) {
         id command = [self.commandDelegate getCommandInstance:@"File"];
         if ([command isKindOfClass:[CDVFile class]]) {
             CDVFile* cdvFile = (CDVFile*)command;
-            NSString* mimeType = [cdvFile getMimeTypeFromPath:fullPath];
-            [fileDict setObject:(mimeType != nil ? (NSObject*)mimeType : [NSNull null]) forKey:@"type"];
-        }
+            mimeType = [cdvFile getMimeTypeFromPath:fullPath];
+                    }
     }
+    [fileDict setObject:(mimeType != nil ? (NSObject*)mimeType : [NSNull null]) forKey:@"type"];
     NSDictionary* fileAttrs = [fileMgr attributesOfItemAtPath:fullPath error:nil];
     [fileDict setObject:[NSNumber numberWithUnsignedLongLong:[fileAttrs fileSize]] forKey:@"size"];
     NSDate* modDate = [fileAttrs fileModificationDate];
@@ -600,7 +613,7 @@
 
 @end
 
-@interface CDVAudioRecorderViewController () {
+@interface CDVAudioRecorderViewController () <UIAdaptivePresentationControllerDelegate> {
     UIStatusBarStyle _previousStatusBarStyle;
 }
 @end
@@ -913,7 +926,7 @@
     if (flag) {
         NSString* filePath = [avRecorder.url path];
         // NSLog(@"filePath: %@", filePath);
-        NSDictionary* fileDict = [captureCommand getMediaDictionaryFromPath:filePath ofType:@"audio/wav"];
+        NSDictionary* fileDict = [captureCommand getMediaDictionaryFromPath:filePath ofType:nil];
         NSArray* fileArray = [NSArray arrayWithObject:fileDict];
 
         self.pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:fileArray];
