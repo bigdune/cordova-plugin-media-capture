@@ -356,7 +356,7 @@ public class Capture extends CordovaPlugin {
 
         intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, videoUri);
 
-        this.videoAbsolutePath = FilePath.getPath(this.cordova.getActivity().getApplicationContext(), videoUri);
+        this.videoAbsolutePath = FilePath.getFilePathFromURI(this.cordova.getActivity().getApplicationContext(), videoUri);
 
         // Attempt to use rear facing camera
         intent.putExtra("android.intent.extras.LENS_FACING_BACK", 1 ); 
