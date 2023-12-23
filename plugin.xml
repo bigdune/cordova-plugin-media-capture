@@ -35,6 +35,7 @@ xmlns:android="http://schemas.android.com/apk/res/android"
     </engines>
 
     <dependency id="cordova-plugin-file" version="^7.0.0" />
+    <dependency id="cordova-plugin-filepath" version="^1.6.0" />
 
     <js-module src="www/CaptureAudioOptions.js" name="CaptureAudioOptions">
         <clobbers target="CaptureAudioOptions" />
@@ -90,6 +91,7 @@ xmlns:android="http://schemas.android.com/apk/res/android"
 
         <config-file target="AndroidManifest.xml" parent="/*">
             <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
             <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
             <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
             <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"

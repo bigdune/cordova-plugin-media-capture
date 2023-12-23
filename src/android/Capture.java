@@ -36,6 +36,7 @@ import android.os.Bundle;
 
 import org.apache.cordova.file.FileUtils;
 import org.apache.cordova.file.LocalFilesystemURL;
+import com.hiddentao.cordova.filepath.FilePath;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
@@ -352,10 +353,17 @@ public class Capture extends CordovaPlugin {
         ContentValues cv = new ContentValues();
         cv.put(MediaStore.Video.Media.MIME_TYPE, VIDEO_MP4);
         videoUri = contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cv);
-        LOG.d(LOG_TAG, "Taking a video and saving to: " + videoUri.toString());
 
         intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, videoUri);
-        // intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+
+        this.videoAbsolutePath = FilePath.getPath(this.cordova.getActivity().getApplicationContext(), videoUri);
+
+        // Attempt to use rear facing camera
+        intent.putExtra("android.intent.extras.LENS_FACING_BACK", 1 ); 
+ 		intent.putExtra("android.intent.extras.CAMERA_FACING", 0 ); 
+ 		intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", false );
+
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 
         if(Build.VERSION.SDK_INT > 7){
             intent.putExtra("android.intent.extra.durationLimit", req.duration);
@@ -378,20 +386,17 @@ public class Capture extends CordovaPlugin {
 
         // Result received okay
         if (resultCode == Activity.RESULT_OK) {
-            Runnable processActivityResult = new Runnable() {
-                @Override
-                public void run() {
-                    switch(req.action) {
-                        case CAPTURE_AUDIO:
-                            onAudioActivityResult(req, intent);
-                            break;
-                        case CAPTURE_IMAGE:
-                            onImageActivityResult(req);
-                            break;
-                        case CAPTURE_VIDEO:
-                            onVideoActivityResult(req, intent);
-                            break;
-                    }
+            Runnable processActivityResult = () -> {
+                switch(req.action) {
+                    case CAPTURE_AUDIO:
+                        onAudioActivityResult(req, intent);
+                        break;
+                    case CAPTURE_IMAGE:
+                        onImageActivityResult(req);
+                        break;
+                    case CAPTURE_VIDEO:
+                        onVideoActivityResult(req, intent);
+                        break;
                 }
             };
 
