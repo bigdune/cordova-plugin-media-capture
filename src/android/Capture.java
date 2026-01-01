@@ -281,7 +281,7 @@ public class Capture extends CordovaPlugin {
      * Sets up an intent to capture audio.  Result handled by onActivityResult()
      */
     private void captureAudio(Request req) {
-        if (isMissingPermissions(req, Manifest.permission.READ_MEDIA_AUDIO)) return;
+        if (isMissingPermissions(req, Manifest.permission.READ_EXTERNAL_STORAGE)) return;
 
         try {
             Intent intent = new Intent(android.provider.MediaStore.Audio.Media.RECORD_SOUND_ACTION);
@@ -318,7 +318,7 @@ public class Capture extends CordovaPlugin {
      * Sets up an intent to capture images.  Result handled by onActivityResult()
      */
     private void captureImage(Request req) {
-        if (isMissingCameraPermissions(req, Manifest.permission.READ_MEDIA_IMAGES)) return;
+        if (isMissingCameraPermissions(req, Manifest.permission.READ_EXTERNAL_STORAGE)) return;
 
         // Save the number of images currently on disk for later
         this.numPics = queryImgDB(whichContentStore()).getCount();
@@ -344,7 +344,7 @@ public class Capture extends CordovaPlugin {
      * Sets up an intent to capture video.  Result handled by onActivityResult()
      */
     private void captureVideo(Request req) {
-        if (isMissingCameraPermissions(req, Manifest.permission.READ_MEDIA_VIDEO)) return;
+        if (isMissingCameraPermissions(req, Manifest.permission.READ_EXTERNAL_STORAGE)) return;
 
         Intent intent = new Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE);
         
