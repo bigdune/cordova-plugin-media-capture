@@ -251,8 +251,11 @@ public class Capture extends CordovaPlugin {
         }
 
         boolean isMissingPermissions = missingPermissions.size() > 0;
+        LOG.d(LOG_TAG, "isMissingPermissions check - Total permissions: " + permissions.size() + 
+              ", Missing: " + missingPermissions.size() + ", List: " + missingPermissions.toString());
         if (isMissingPermissions) {
             String[] missing = missingPermissions.toArray(new String[missingPermissions.size()]);
+            LOG.d(LOG_TAG, "Requesting permissions: " + Arrays.toString(missing));
             PermissionHelper.requestPermissions(this, req.requestCode, missing);
         }
         return isMissingPermissions;
@@ -274,6 +277,8 @@ public class Capture extends CordovaPlugin {
         if (mediaPermission != null && android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             cameraPermissions.add(mediaPermission);
         }
+        LOG.d(LOG_TAG, "Checking camera permissions. Android version: " + Build.VERSION.SDK_INT + 
+              ", Permissions to check: " + cameraPermissions.toString());
         return isMissingPermissions(req, cameraPermissions);
     }
 
