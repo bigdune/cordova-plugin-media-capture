@@ -29,6 +29,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 import android.content.ActivityNotFoundException;
 import android.os.Build;
@@ -110,6 +111,7 @@ public class Capture extends CordovaPlugin {
     private String audioAbsolutePath;
     private String imageAbsolutePath;
     private String videoAbsolutePath;
+    private Uri videoUri;
 
     private String applicationId;
 
@@ -244,8 +246,8 @@ public class Capture extends CordovaPlugin {
         return obj;
     }
 
-    private boolean isMissingPermissions(Request req, ArrayList<String> permissions) {
-        ArrayList<String> missingPermissions = new ArrayList<>();
+    private boolean isMissingPermissions(Request req, List<String> permissions) {
+        List<String> missingPermissions = new ArrayList<>();
         for (String permission : permissions) {
             if (!PermissionHelper.hasPermission(this, permission)) {
                 missingPermissions.add(permission);
@@ -253,34 +255,22 @@ public class Capture extends CordovaPlugin {
         }
 
         boolean isMissingPermissions = missingPermissions.size() > 0;
-        LOG.i(LOG_TAG, "isMissingPermissions check - Total permissions: " + permissions.size() +
-                ", Missing: " + missingPermissions.size() + ", List: " + missingPermissions.toString());
         if (isMissingPermissions) {
             String[] missing = missingPermissions.toArray(new String[missingPermissions.size()]);
-            LOG.i(LOG_TAG, "Requesting permissions: " + Arrays.toString(missing));
             PermissionHelper.requestPermissions(this, req.requestCode, missing);
         }
         return isMissingPermissions;
     }
 
-    private boolean isMissingPermissions(Request req, String mediaPermission) {
-        ArrayList<String> permissions = new ArrayList<>(Arrays.asList(storagePermissions));
-        if (mediaPermission != null && android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(mediaPermission);
-        }
-        return isMissingPermissions(req, permissions);
+    private boolean isMissingPermissions(Request req) {
+        return isMissingPermissions(req, Arrays.asList(storagePermissions));
     }
 
-    private boolean isMissingCameraPermissions(Request req, String mediaPermission) {
-        ArrayList<String> cameraPermissions = new ArrayList<>(Arrays.asList(storagePermissions));
+    private boolean isMissingCameraPermissions(Request req) {
+        List<String> cameraPermissions = new ArrayList<>(Arrays.asList(storagePermissions));
         if (cameraPermissionInManifest) {
             cameraPermissions.add(Manifest.permission.CAMERA);
         }
-        if (mediaPermission != null && android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            cameraPermissions.add(mediaPermission);
-        }
-        LOG.i(LOG_TAG, "Checking camera permissions. Android version: " + Build.VERSION.SDK_INT +
-                ", Permissions to check: " + cameraPermissions.toString());
         return isMissingPermissions(req, cameraPermissions);
     }
 
@@ -327,7 +317,7 @@ public class Capture extends CordovaPlugin {
      * Sets up an intent to capture images. Result handled by onActivityResult()
      */
     private void captureImage(Request req) {
-        if (isMissingCameraPermissions(req, null))
+        if (isMissingCameraPermissions(req))
             return;
 
         // Save the number of images currently on disk for later
@@ -356,22 +346,21 @@ public class Capture extends CordovaPlugin {
     private void captureVideo(Request req) {
         LOG.i(LOG_TAG, "captureVideo called - SDK version: " + Build.VERSION.SDK_INT + ", Camera in manifest: "
                 + cameraPermissionInManifest);
-        if (isMissingCameraPermissions(req, null))
+        if (isMissingCameraPermissions(req))
             return;
 
         LOG.i(LOG_TAG, "Permissions granted, launching video capture intent");
         Intent intent = new Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE);
 
-        Uri videoUri;
         ContentResolver contentResolver = this.cordova.getActivity().getContentResolver();
         ContentValues cv = new ContentValues();
         cv.put(MediaStore.Video.Media.MIME_TYPE, VIDEO_MP4);
-        videoUri = contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cv);
+        this.videoUri = contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cv);
 
-        intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, videoUri);
+        intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, this.videoUri);
 
-        this.videoAbsolutePath = FilePath.getFilePathFromURI(this.cordova.getActivity().getApplicationContext(),
-                videoUri);
+        // Store URI for later - we'll get the path after capture completes
+        LOG.d(LOG_TAG, "Recording video to URI: " + this.videoUri);
 
         // Attempt to use rear facing camera
         intent.putExtra("android.intent.extras.LENS_FACING_BACK", 1);
@@ -471,10 +460,22 @@ public class Capture extends CordovaPlugin {
     }
 
     public void onVideoActivityResult(Request req, Intent intent) {
+        // Try to get the absolute path from the stored URI
+        if (this.videoUri != null) {
+            try {
+                this.videoAbsolutePath = FilePath.getFilePathFromURI(this.cordova.getActivity().getApplicationContext(),
+                        this.videoUri);
+                LOG.d(LOG_TAG, "Video captured at path: " + this.videoAbsolutePath);
+            } catch (Exception e) {
+                LOG.e(LOG_TAG, "Failed to get video path from URI: " + e.getMessage());
+            }
+        }
+
         if (this.videoAbsolutePath != null) {
             req.results.put(createMediaFileWithAbsolutePath(this.videoAbsolutePath));
         } else {
-            pendingRequests.resolveWithFailure(req, createErrorObject(CAPTURE_NO_MEDIA_FILES, "Error: data is null"));
+            pendingRequests.resolveWithFailure(req,
+                    createErrorObject(CAPTURE_NO_MEDIA_FILES, "Error: Unable to get video file path"));
         }
 
         if (req.results.length() >= req.limit) {
