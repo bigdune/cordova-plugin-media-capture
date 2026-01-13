@@ -106,6 +106,9 @@ public class Capture extends CordovaPlugin {
     private String audioAbsolutePath;
     private String imageAbsolutePath;
     private String videoAbsolutePath;
+    
+    // Store content URI for Android 13+ fallback (video)
+    private Uri videoContentUri;
 
     private String applicationId;
 
@@ -334,8 +337,11 @@ public class Capture extends CordovaPlugin {
 
         intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, imageUri);
 
-        // intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-        LOG.d(LOG_TAG, "Taking a picture and saving to: " + this.imageAbsolutePath);
+        // Get the absolute path from the content URI
+        this.imageAbsolutePath = FilePath.getFilePathFromURI(this.cordova.getActivity().getApplicationContext(), imageUri);
+
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        LOG.d(LOG_TAG, "Taking a picture, absolute path: " + this.imageAbsolutePath);
 
         this.cordova.startActivityForResult((CordovaPlugin) this, intent, req.requestCode);
     }
@@ -356,7 +362,11 @@ public class Capture extends CordovaPlugin {
 
         intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, videoUri);
 
+        // Store content URI for fallback on Android 13+
+        this.videoContentUri = videoUri;
+
         this.videoAbsolutePath = FilePath.getFilePathFromURI(this.cordova.getActivity().getApplicationContext(), videoUri);
+        LOG.d(LOG_TAG, "Video absolute path resolved to: " + this.videoAbsolutePath);
 
         // Attempt to use rear facing camera
         intent.putExtra("android.intent.extras.LENS_FACING_BACK", 1 ); 
@@ -454,10 +464,16 @@ public class Capture extends CordovaPlugin {
     }
 
     public void onVideoActivityResult(Request req, Intent intent) {
+        // Try absolute path first, fall back to content URI
         if(this.videoAbsolutePath != null) {
             req.results.put(createMediaFileWithAbsolutePath(this.videoAbsolutePath));
+        } else if(this.videoContentUri != null) {
+            // Fallback for Android 13+ where FilePath cannot resolve content URIs
+            LOG.d(LOG_TAG, "Using content URI fallback for video: " + this.videoContentUri.toString());
+            req.results.put(createMediaFile(this.videoContentUri));
         } else {
             pendingRequests.resolveWithFailure(req, createErrorObject(CAPTURE_NO_MEDIA_FILES, "Error: data is null"));
+            return;
         }
 
         if (req.results.length() >= req.limit) {
@@ -479,6 +495,13 @@ public class Capture extends CordovaPlugin {
     private JSONObject createMediaFile(Uri data) {
         File fp = webView.getResourceApi().mapUriToFile(data);
         JSONObject obj = new JSONObject();
+
+        // On Android 13+, content URIs cannot be mapped to file paths
+        // In this case, we need to handle the content URI directly
+        if (fp == null) {
+            LOG.d(LOG_TAG, "Cannot map URI to file, using content URI handling for: " + data.toString());
+            return createMediaFileFromContentUri(data);
+        }
 
         Class webViewClass = webView.getClass();
         PluginManager pm = null;
@@ -526,6 +549,70 @@ public class Capture extends CordovaPlugin {
             // this will never happen
             e.printStackTrace();
         }
+        return obj;
+    }
+    
+    /**
+     * Creates a JSONObject that represents a File from a content Uri (for Android 13+)
+     *
+     * @param contentUri the content:// Uri of the audio/image/video
+     * @return a JSONObject that represents a File
+     */
+    private JSONObject createMediaFileFromContentUri(Uri contentUri) {
+        JSONObject obj = new JSONObject();
+        ContentResolver contentResolver = this.cordova.getActivity().getContentResolver();
+        
+        String fileName = null;
+        long fileSize = 0;
+        long lastModified = System.currentTimeMillis();
+        String mimeType = contentResolver.getType(contentUri);
+        
+        // Query the content resolver for file details
+        String[] projection = {
+            MediaStore.MediaColumns.DISPLAY_NAME,
+            MediaStore.MediaColumns.SIZE,
+            MediaStore.MediaColumns.DATE_MODIFIED
+        };
+        
+        try (Cursor cursor = contentResolver.query(contentUri, projection, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int nameIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME);
+                int sizeIndex = cursor.getColumnIndex(MediaStore.MediaColumns.SIZE);
+                int dateIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED);
+                
+                if (nameIndex >= 0) {
+                    fileName = cursor.getString(nameIndex);
+                }
+                if (sizeIndex >= 0) {
+                    fileSize = cursor.getLong(sizeIndex);
+                }
+                if (dateIndex >= 0) {
+                    lastModified = cursor.getLong(dateIndex) * 1000; // Convert seconds to milliseconds
+                }
+            }
+        } catch (Exception e) {
+            LOG.e(LOG_TAG, "Error querying content URI: " + e.getMessage());
+        }
+        
+        // Fallback for filename if query failed
+        if (fileName == null) {
+            fileName = contentUri.getLastPathSegment();
+            if (fileName == null) {
+                fileName = "media_" + System.currentTimeMillis();
+            }
+        }
+        
+        try {
+            obj.put("name", fileName);
+            obj.put("fullPath", contentUri.toString());
+            obj.put("localURL", contentUri.toString());
+            obj.put("type", mimeType != null ? mimeType : "application/octet-stream");
+            obj.put("lastModifiedDate", lastModified);
+            obj.put("size", fileSize);
+        } catch (JSONException e) {
+            LOG.e(LOG_TAG, "Error creating JSON for content URI: " + e.getMessage());
+        }
+        
         return obj;
     }
 
