@@ -85,15 +85,18 @@ public class Capture extends CordovaPlugin {
     private static final int CAPTURE_NOT_SUPPORTED = 20;
 
     private static String[] storagePermissions;
+    private static String videoPermission;
     static {
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             storagePermissions = new String[]{
             };
+            videoPermission = null;
         } else {
             storagePermissions = new String[] {
                 Manifest.permission.READ_EXTERNAL_STORAGE,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE
             };
+            // videoPermission = Manifest.permission.READ_MEDIA_VIDEO;
         }
     }
 
@@ -286,7 +289,7 @@ public class Capture extends CordovaPlugin {
      * Sets up an intent to capture audio.  Result handled by onActivityResult()
      */
     private void captureAudio(Request req) {
-        if (isMissingPermissions(req, Manifest.permission.READ_EXTERNAL_STORAGE)) return;
+        if (isMissingPermissions(req, null)) return;
 
         try {
             Intent intent = new Intent(android.provider.MediaStore.Audio.Media.RECORD_SOUND_ACTION);
@@ -349,8 +352,10 @@ public class Capture extends CordovaPlugin {
      * Sets up an intent to capture video.  Result handled by onActivityResult()
      */
     private void captureVideo(Request req) {
+        LOG.d(LOG_TAG, "captureVideo called - SDK version: " + Build.VERSION.SDK_INT + ", Camera in manifest: " + cameraPermissionInManifest);
         if (isMissingCameraPermissions(req, null)) return;
 
+        LOG.d(LOG_TAG, "Permissions granted, launching video capture intent");
         Intent intent = new Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE);
         
         Uri videoUri;
