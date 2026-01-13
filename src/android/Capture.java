@@ -69,17 +69,17 @@ public class Capture extends CordovaPlugin {
     private static final String VIDEO_3GPP = "video/3gpp";
     private static final String VIDEO_MP4 = "video/mp4";
     private static final String AUDIO_3GPP = "audio/3gpp";
-    private static final String[] AUDIO_TYPES = new String[] {"audio/3gpp", "audio/aac", "audio/amr", "audio/wav"};
+    private static final String[] AUDIO_TYPES = new String[] { "audio/3gpp", "audio/aac", "audio/amr", "audio/wav" };
     private static final String IMAGE_JPEG = "image/jpeg";
 
-    private static final int CAPTURE_AUDIO = 0;     // Constant for capture audio
-    private static final int CAPTURE_IMAGE = 1;     // Constant for capture image
-    private static final int CAPTURE_VIDEO = 2;     // Constant for capture video
+    private static final int CAPTURE_AUDIO = 0; // Constant for capture audio
+    private static final int CAPTURE_IMAGE = 1; // Constant for capture image
+    private static final int CAPTURE_VIDEO = 2; // Constant for capture video
     private static final String LOG_TAG = "Capture";
 
     private static final int CAPTURE_INTERNAL_ERR = 0;
-//    private static final int CAPTURE_APPLICATION_BUSY = 1;
-//    private static final int CAPTURE_INVALID_ARGUMENT = 2;
+    // private static final int CAPTURE_APPLICATION_BUSY = 1;
+    // private static final int CAPTURE_INVALID_ARGUMENT = 2;
     private static final int CAPTURE_NO_MEDIA_FILES = 3;
     private static final int CAPTURE_PERMISSION_DENIED = 4;
     private static final int CAPTURE_NOT_SUPPORTED = 20;
@@ -88,23 +88,24 @@ public class Capture extends CordovaPlugin {
     private static String videoPermission;
     static {
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            storagePermissions = new String[]{
+            storagePermissions = new String[] {
             };
             videoPermission = null;
         } else {
             storagePermissions = new String[] {
-                Manifest.permission.READ_EXTERNAL_STORAGE,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
             };
             // videoPermission = Manifest.permission.READ_MEDIA_VIDEO;
         }
     }
 
-    private boolean cameraPermissionInManifest;     // Whether or not the CAMERA permission is declared in AndroidManifest.xml
+    private boolean cameraPermissionInManifest; // Whether or not the CAMERA permission is declared in
+                                                // AndroidManifest.xml
 
     private final PendingRequests pendingRequests = new PendingRequests();
 
-    private int numPics;                            // Number of pictures before capture activity
+    private int numPics; // Number of pictures before capture activity
 
     private String audioAbsolutePath;
     private String imageAbsolutePath;
@@ -116,14 +117,17 @@ public class Capture extends CordovaPlugin {
     protected void pluginInitialize() {
         super.pluginInitialize();
 
-        // CB-10670: The CAMERA permission does not need to be requested unless it is declared
-        // in AndroidManifest.xml. This plugin does not declare it, but others may and so we must
+        // CB-10670: The CAMERA permission does not need to be requested unless it is
+        // declared
+        // in AndroidManifest.xml. This plugin does not declare it, but others may and
+        // so we must
         // check the package info to determine if the permission is present.
 
         cameraPermissionInManifest = false;
         try {
             PackageManager packageManager = this.cordova.getActivity().getPackageManager();
-            String[] permissionsInPackage = packageManager.getPackageInfo(this.cordova.getActivity().getPackageName(), PackageManager.GET_PERMISSIONS).requestedPermissions;
+            String[] permissionsInPackage = packageManager.getPackageInfo(this.cordova.getActivity().getPackageName(),
+                    PackageManager.GET_PERMISSIONS).requestedPermissions;
             if (permissionsInPackage != null) {
                 for (String permission : permissionsInPackage) {
                     if (permission.equals(Manifest.permission.CAMERA)) {
@@ -153,14 +157,11 @@ public class Capture extends CordovaPlugin {
 
         if (action.equals("captureAudio")) {
             this.captureAudio(pendingRequests.createRequest(CAPTURE_AUDIO, options, callbackContext));
-        }
-        else if (action.equals("captureImage")) {
+        } else if (action.equals("captureImage")) {
             this.captureImage(pendingRequests.createRequest(CAPTURE_IMAGE, options, callbackContext));
-        }
-        else if (action.equals("captureVideo")) {
+        } else if (action.equals("captureVideo")) {
             this.captureVideo(pendingRequests.createRequest(CAPTURE_VIDEO, options, callbackContext));
-        }
-        else {
+        } else {
             return false;
         }
 
@@ -193,11 +194,9 @@ public class Capture extends CordovaPlugin {
 
         if (mimeType.equals(IMAGE_JPEG) || filePath.endsWith(".jpg")) {
             obj = getImageData(fileUrl, obj);
-        }
-        else if (Arrays.asList(AUDIO_TYPES).contains(mimeType)) {
+        } else if (Arrays.asList(AUDIO_TYPES).contains(mimeType)) {
             obj = getAudioVideoData(filePath, obj, false);
-        }
-        else if (mimeType.equals(VIDEO_3GPP) || mimeType.equals(VIDEO_MP4)) {
+        } else if (mimeType.equals(VIDEO_3GPP) || mimeType.equals(VIDEO_MP4)) {
             obj = getAudioVideoData(filePath, obj, true);
         }
         return obj;
@@ -207,7 +206,7 @@ public class Capture extends CordovaPlugin {
      * Get the Image specific attributes
      *
      * @param fileUrl url pointing to the file
-     * @param obj represents the Media File Data
+     * @param obj     represents the Media File Data
      * @return a JSONObject that represents the Media File Data
      * @throws JSONException
      */
@@ -224,8 +223,8 @@ public class Capture extends CordovaPlugin {
      * Get the Image specific attributes
      *
      * @param filePath path to the file
-     * @param obj represents the Media File Data
-     * @param video if true get video attributes as well
+     * @param obj      represents the Media File Data
+     * @param video    if true get video attributes as well
      * @return a JSONObject that represents the Media File Data
      * @throws JSONException
      */
@@ -247,15 +246,15 @@ public class Capture extends CordovaPlugin {
 
     private boolean isMissingPermissions(Request req, ArrayList<String> permissions) {
         ArrayList<String> missingPermissions = new ArrayList<>();
-        for (String permission: permissions) {
+        for (String permission : permissions) {
             if (!PermissionHelper.hasPermission(this, permission)) {
                 missingPermissions.add(permission);
             }
         }
 
         boolean isMissingPermissions = missingPermissions.size() > 0;
-        LOG.d(LOG_TAG, "isMissingPermissions check - Total permissions: " + permissions.size() + 
-              ", Missing: " + missingPermissions.size() + ", List: " + missingPermissions.toString());
+        LOG.d(LOG_TAG, "isMissingPermissions check - Total permissions: " + permissions.size() +
+                ", Missing: " + missingPermissions.size() + ", List: " + missingPermissions.toString());
         if (isMissingPermissions) {
             String[] missing = missingPermissions.toArray(new String[missingPermissions.size()]);
             LOG.d(LOG_TAG, "Requesting permissions: " + Arrays.toString(missing));
@@ -280,16 +279,17 @@ public class Capture extends CordovaPlugin {
         if (mediaPermission != null && android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             cameraPermissions.add(mediaPermission);
         }
-        LOG.d(LOG_TAG, "Checking camera permissions. Android version: " + Build.VERSION.SDK_INT + 
-              ", Permissions to check: " + cameraPermissions.toString());
+        LOG.d(LOG_TAG, "Checking camera permissions. Android version: " + Build.VERSION.SDK_INT +
+                ", Permissions to check: " + cameraPermissions.toString());
         return isMissingPermissions(req, cameraPermissions);
     }
 
     /**
-     * Sets up an intent to capture audio.  Result handled by onActivityResult()
+     * Sets up an intent to capture audio. Result handled by onActivityResult()
      */
     private void captureAudio(Request req) {
-        if (isMissingPermissions(req, null)) return;
+        if (isMissingPermissions(req, new ArrayList<>()))
+            return;
 
         try {
             Intent intent = new Intent(android.provider.MediaStore.Audio.Media.RECORD_SOUND_ACTION);
@@ -307,7 +307,8 @@ public class Capture extends CordovaPlugin {
             LOG.d(LOG_TAG, "Recording an audio and saving to: " + this.audioAbsolutePath);
             this.cordova.startActivityForResult((CordovaPlugin) this, intent, req.requestCode);
         } catch (ActivityNotFoundException ex) {
-            pendingRequests.resolveWithFailure(req, createErrorObject(CAPTURE_NOT_SUPPORTED, "No Activity found to handle Audio Capture."));
+            pendingRequests.resolveWithFailure(req,
+                    createErrorObject(CAPTURE_NOT_SUPPORTED, "No Activity found to handle Audio Capture."));
         }
     }
 
@@ -323,10 +324,11 @@ public class Capture extends CordovaPlugin {
     }
 
     /**
-     * Sets up an intent to capture images.  Result handled by onActivityResult()
+     * Sets up an intent to capture images. Result handled by onActivityResult()
      */
     private void captureImage(Request req) {
-        if (isMissingCameraPermissions(req, null)) return;
+        if (isMissingCameraPermissions(req, null))
+            return;
 
         // Save the number of images currently on disk for later
         this.numPics = queryImgDB(whichContentStore()).getCount();
@@ -349,15 +351,17 @@ public class Capture extends CordovaPlugin {
     }
 
     /**
-     * Sets up an intent to capture video.  Result handled by onActivityResult()
+     * Sets up an intent to capture video. Result handled by onActivityResult()
      */
     private void captureVideo(Request req) {
-        LOG.d(LOG_TAG, "captureVideo called - SDK version: " + Build.VERSION.SDK_INT + ", Camera in manifest: " + cameraPermissionInManifest);
-        if (isMissingCameraPermissions(req, null)) return;
+        LOG.d(LOG_TAG, "captureVideo called - SDK version: " + Build.VERSION.SDK_INT + ", Camera in manifest: "
+                + cameraPermissionInManifest);
+        if (isMissingCameraPermissions(req, null))
+            return;
 
         LOG.d(LOG_TAG, "Permissions granted, launching video capture intent");
         Intent intent = new Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE);
-        
+
         Uri videoUri;
         ContentResolver contentResolver = this.cordova.getActivity().getContentResolver();
         ContentValues cv = new ContentValues();
@@ -366,16 +370,17 @@ public class Capture extends CordovaPlugin {
 
         intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, videoUri);
 
-        this.videoAbsolutePath = FilePath.getFilePathFromURI(this.cordova.getActivity().getApplicationContext(), videoUri);
+        this.videoAbsolutePath = FilePath.getFilePathFromURI(this.cordova.getActivity().getApplicationContext(),
+                videoUri);
 
         // Attempt to use rear facing camera
-        intent.putExtra("android.intent.extras.LENS_FACING_BACK", 1 ); 
- 		intent.putExtra("android.intent.extras.CAMERA_FACING", 0 ); 
- 		intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", false );
+        intent.putExtra("android.intent.extras.LENS_FACING_BACK", 1);
+        intent.putExtra("android.intent.extras.CAMERA_FACING", 0);
+        intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", false);
 
         intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 
-        if(Build.VERSION.SDK_INT > 7){
+        if (Build.VERSION.SDK_INT > 7) {
             intent.putExtra("android.intent.extra.durationLimit", req.duration);
             intent.putExtra("android.intent.extra.videoQuality", req.quality);
         }
@@ -385,10 +390,13 @@ public class Capture extends CordovaPlugin {
     /**
      * Called when the video view exits.
      *
-     * @param requestCode       The request code originally supplied to startActivityForResult(),
-     *                          allowing you to identify who this result came from.
-     * @param resultCode        The integer result code returned by the child activity through its setResult().
-     * @param intent            An Intent, which can return result data to the caller (various data can be attached to Intent "extras").
+     * @param requestCode The request code originally supplied to
+     *                    startActivityForResult(),
+     *                    allowing you to identify who this result came from.
+     * @param resultCode  The integer result code returned by the child activity
+     *                    through its setResult().
+     * @param intent      An Intent, which can return result data to the caller
+     *                    (various data can be attached to Intent "extras").
      * @throws JSONException
      */
     public void onActivityResult(int requestCode, int resultCode, final Intent intent) {
@@ -397,7 +405,7 @@ public class Capture extends CordovaPlugin {
         // Result received okay
         if (resultCode == Activity.RESULT_OK) {
             Runnable processActivityResult = () -> {
-                switch(req.action) {
+                switch (req.action) {
                     case CAPTURE_AUDIO:
                         onAudioActivityResult(req, intent);
                         break;
@@ -436,7 +444,6 @@ public class Capture extends CordovaPlugin {
         }
     }
 
-
     public void onAudioActivityResult(Request req, Intent intent) {
         // create a file object from the audio absolute path
         req.results.put(createMediaFileWithAbsolutePath(this.audioAbsolutePath));
@@ -464,7 +471,7 @@ public class Capture extends CordovaPlugin {
     }
 
     public void onVideoActivityResult(Request req, Intent intent) {
-        if(this.videoAbsolutePath != null) {
+        if (this.videoAbsolutePath != null) {
             req.results.put(createMediaFileWithAbsolutePath(this.videoAbsolutePath));
         } else {
             pendingRequests.resolveWithFailure(req, createErrorObject(CAPTURE_NO_MEDIA_FILES, "Error: data is null"));
@@ -502,7 +509,7 @@ public class Capture extends CordovaPlugin {
         if (pm == null) {
             try {
                 Field pmf = webViewClass.getField("pluginManager");
-                pm = (PluginManager)pmf.get(webView);
+                pm = (PluginManager) pmf.get(webView);
             } catch (NoSuchFieldException e) {
             } catch (IllegalAccessException e) {
             }
@@ -517,8 +524,10 @@ public class Capture extends CordovaPlugin {
             if (url != null) {
                 obj.put("localURL", url.toString());
             }
-            // Because of an issue with MimeTypeMap.getMimeTypeFromExtension() all .3gpp files
-            // are reported as video/3gpp. I'm doing this hacky check of the URI to see if it
+            // Because of an issue with MimeTypeMap.getMimeTypeFromExtension() all .3gpp
+            // files
+            // are reported as video/3gpp. I'm doing this hacky check of the URI to see if
+            // it
             // is stored in the audio or video content store.
             if (fp.getAbsoluteFile().toString().endsWith(".3gp") || fp.getAbsoluteFile().toString().endsWith(".3gpp")) {
                 if (data.toString().contains("/audio/")) {
@@ -562,7 +571,7 @@ public class Capture extends CordovaPlugin {
         if (pm == null) {
             try {
                 Field pmf = webViewClass.getField("pluginManager");
-                pm = (PluginManager)pmf.get(webView);
+                pm = (PluginManager) pmf.get(webView);
             } catch (NoSuchFieldException e) {
             } catch (IllegalAccessException e) {
             }
@@ -577,8 +586,10 @@ public class Capture extends CordovaPlugin {
             if (url != null) {
                 obj.put("localURL", url.toString());
             }
-            // Because of an issue with MimeTypeMap.getMimeTypeFromExtension() all .3gpp files
-            // are reported as video/3gpp. I'm doing this hacky check of the URI to see if it
+            // Because of an issue with MimeTypeMap.getMimeTypeFromExtension() all .3gpp
+            // files
+            // are reported as video/3gpp. I'm doing this hacky check of the URI to see if
+            // it
             // is stored in the audio or video content store.
             if (fp.getAbsoluteFile().toString().endsWith(".3gp") || fp.getAbsoluteFile().toString().endsWith(".3gpp")) {
                 obj.put("type", VIDEO_3GPP);
@@ -613,15 +624,16 @@ public class Capture extends CordovaPlugin {
      */
     private Cursor queryImgDB(Uri contentStore) {
         return this.cordova.getActivity().getContentResolver().query(
-            contentStore,
-            new String[] { MediaStore.Images.Media._ID },
-            null,
-            null,
-            null);
+                contentStore,
+                new String[] { MediaStore.Images.Media._ID },
+                null,
+                null,
+                null);
     }
 
     /**
      * Determine if we are storing the images in internal or external storage
+     * 
      * @return Uri
      */
     private Uri whichContentStore() {
@@ -647,12 +659,12 @@ public class Capture extends CordovaPlugin {
     }
 
     public void onRequestPermissionResult(int requestCode, String[] permissions,
-                                          int[] grantResults) throws JSONException {
+            int[] grantResults) throws JSONException {
         Request req = pendingRequests.get(requestCode);
 
         if (req != null) {
             boolean success = true;
-            for(int r:grantResults) {
+            for (int r : grantResults) {
                 if (r == PackageManager.PERMISSION_DENIED) {
                     success = false;
                     break;
@@ -662,7 +674,8 @@ public class Capture extends CordovaPlugin {
             if (success) {
                 executeRequest(req);
             } else {
-                pendingRequests.resolveWithFailure(req, createErrorObject(CAPTURE_PERMISSION_DENIED, "Permission denied."));
+                pendingRequests.resolveWithFailure(req,
+                        createErrorObject(CAPTURE_PERMISSION_DENIED, "Permission denied."));
             }
         }
     }
